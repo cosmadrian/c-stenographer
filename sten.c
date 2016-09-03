@@ -115,8 +115,6 @@ char* pad(char* bytes, int* bsize){
         pad_size = keysize;
     }
 
-    printf("PADSIZE: %d\n\n",pad_size);
-
     char* buffer = (char*) calloc(1, *bsize + pad_size + 1);
 
     int i;
@@ -141,25 +139,16 @@ int hide_me(char* filename, char* buffer, int buf_len){
     pbuffer[buf_len] = 0;
 
     for(i = 0; i < buf_len + 1; i++){
-        //print_bits(pbuffer[i]);
         for(j=0; j < 8; j ++){
             int bit1 = get_bit(pbuffer[i], j);
             j++;
             int bit2 = get_bit(pbuffer[i], j);
             
-          //  printf("Got %d%d\n",bit1,bit2);
-
             fread(&byte, 1, 1, f);
-
-            //printf("Changing...\n");
-            //print_bits(byte);
             
             byte = change_bit(byte, 0, bit1);
             byte = change_bit(byte, 1, bit2);
-            print_bits(byte);
 
-            //printf("############\n");
-           
             fseek(f, -1, SEEK_CUR);
             fwrite(&byte, 1, 1, f);
         }
@@ -172,17 +161,27 @@ int hide_me(char* filename, char* buffer, int buf_len){
 
 int find_me(char* filename, char* buffer, int* buf_len){
     FILE *f = fopen(filename, "r+b");
-    int i,j;
 
-    buffer = (char*)realloc(buffer, 1024*sizeof(char));
+    char rbyte;
+    do{
+        rbyte = '\0';
+        char sbytes[4];
+        fread(&sbytes, 1, 4, f);
+        int i, j = 0;
+        for(i = 0; i < 4; i++){
+            int bit1 = get_bit(sbytes[i], 0);
+            int bit2 = get_bit(sbytes[i], 1);
+            
+            rbyte = change_bit(rbyte, j, bit1);
+            j++;
+            rbyte = change_bit(rbyte, j, bit2);
+            j++;
+        }
 
-    char rbyte = NULL;
+        buffer[*buf_len] = rbyte;
+        *buf_len += 1;
 
-    for(i =0; i < 64; i++){
-        fread(&rbyte, 1, 1, f);
-        print_bits(rbyte);
-    } 
-
+    }while(rbyte != '\0' && !feof(f));
 
     fclose(f);
 
@@ -263,9 +262,7 @@ int main(int argc, char** argv) {
                 printf("Incorrect padding ... \n");
                 return -1;
             }
-
             int status = hide_me(file, padded_text, e_size);
-
             if (status == 0){
                 printf("Text was hidden.\n");
             } else {
@@ -276,16 +273,32 @@ int main(int argc, char** argv) {
 
         } else if (mode == 2){
 
-            char* buffer = NULL;
-            int buf_len;
-            // check file type
+            char* buffer = (char*) malloc(1024*sizeof(char));
+            int buf_len = 0;
             
             int status = find_me(file, buffer, &buf_len);
-            // decrypt
             
-            int d_size = decrypt_w(buffer, &buf_len);
-            display(buffer, d_size);
-        }
+            if(status == 0){
+                printf("Text was found!\n");
+                
+                int d_size = -1;
+                d_size = decrypt_w(buffer, buf_len - 1);
+                
+                if(d_size == -1){
+                    printf("BULLSHITE\n");
+                    return -1;
+                }else{
+                    printf("%s\n",buffer);
+                }
+                free(buffer);
+                return 0;
+
+            }else {
+                printf("Something went wrong.\n");
+                return 1;
+            }
+
+              }
 
         free(file);
         free(text);
