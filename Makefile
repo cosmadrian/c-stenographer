@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-c -Wall 
-SRC=sten.c
+SRC=main.c bit_mod.c crypt_mod.c hide_mod.c
 OBJ=$(SRC:.c=.o)
 EXE=hideme
 
