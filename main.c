@@ -9,6 +9,13 @@
 extern int keysize;
 extern char* bkey;
 
+void help(){
+    printf("\nHide files / text into other files. \nInput bytes are encrypted with 128-bit AES, and then hidden into the input file.\n\nExample usage:\n./hideme -e \"foo bar\" -i funny_cat.jpg -k \"16bytekeyherelol\"\n\
+\nEncrypts and hides the text \"foo bar\" into the specified \"funny_cat.jpg\" file, using the 16-byte key.\n\
+To have it returned: \n\
+./hideme -d -i funny_cat.jpg -k \"16bytekeyherelol\"\n\n");
+}
+
 void usage(){
 	printf("\nUsage: hide [-e <text> | -d] -i <filename> -k <key>\"\n\n");
 }
@@ -17,28 +24,29 @@ int main(int argc, char** argv) {
         
         int eflag = 0, dflag = 0, iflag = 0, kflag = 0;
 	char key[16];
-	int mode = 0; 
 	char* file = (char*) malloc(64*sizeof(char));
 	char* text = (char*) malloc(1024*sizeof(char));
         
         int opt;
-        while((opt = getopt(argc, argv, "e:di:k:")) != -1){
+        while((opt = getopt(argc, argv, "e:di:k:h")) != -1){
             FILE *f;
             switch(opt){
+                case 'h':
+                    help();
+                    exit(0);
+                    break;
                 case 'e': 
                     eflag = 1;
-                    mode = 1;
                     strcpy(text, optarg);
                     break;
                 case 'd':
                     dflag = 1;
-                    mode = 2;
                     break;
                 case 'i':
                     iflag = 1;
                     f = fopen(optarg,"r");
                     if (f == NULL){
-                        printf("File '%s' does not exist.\n",optarg);
+                        printf("\nFile '%s' does not exist.\n\n",optarg);
                         exit(-1);
                     }
                     fclose(f);
@@ -47,7 +55,7 @@ int main(int argc, char** argv) {
                 case 'k':
                     kflag = 1;
                     if(strlen(optarg) < 16){
-                        printf("The key must be 16 chars long.\n");
+                        printf("\nThe key must be 16 chars long.\n\n");
                         exit(-1);
                     }
                     memcpy(key,optarg,keysize);
@@ -59,7 +67,7 @@ int main(int argc, char** argv) {
         }
 
         if(eflag - dflag == 0){
-            printf("Please choose either to encrypt or to decrypt!\n");
+            printf("\nPlease choose either to encrypt or to decrypt!\n\n");
             return -1;
         }
         
@@ -68,11 +76,11 @@ int main(int argc, char** argv) {
         }
 
         if(iflag == 0){
-            printf("Please provide an input file.\n");
+            printf("\nPlease provide an input file.\n\n");
             return -1;
         }
 
-        if (mode == 1){
+        if (eflag == 1){
             printf("Encrypting ... \n");
 
             int padded_size = strlen(text);
@@ -83,6 +91,7 @@ int main(int argc, char** argv) {
                 printf("Incorrect padding ... \n");
                 return -1;
             }
+
             int status = hide_me(file, padded_text, e_size);
             if (status == 0){
                 printf("Text was hidden.\n");
@@ -92,7 +101,7 @@ int main(int argc, char** argv) {
 
             free(padded_text);
 
-        } else if (mode == 2){
+        } else if(dflag == 1) {
 
             char* buffer = (char*) malloc(1024*sizeof(char));
             int buf_len = 0;
@@ -105,15 +114,16 @@ int main(int argc, char** argv) {
                 int d_size = decrypt_w(buffer, buf_len - 1, key, keysize);
                 
                 if(d_size == -1){
-                    printf("BULLSHITE\n");
+                    printf("\nUnable to decrypt.\n\n");
                     return -1;
                 }else{
                     printf("%s\n",buffer);
                 }
+
                 free(buffer);
 
             }else {
-                printf("Something went wrong.\n");
+                printf("\nSomething went wrong.\n\n");
                 return 1;
             }
 
